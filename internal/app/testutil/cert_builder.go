@@ -29,6 +29,13 @@ func (cb *CertBuilder) WithDefault() *CertBuilder {
 				Organization: []string{"Test Corp"},
 				CommonName:   "example.com",
 			},
+			Issuer: pkix.Name{
+				CommonName: "Root CA Inc",
+				Organization: []string{
+					"Root CA Inc",
+				},
+			},
+			SignatureAlgorithm:    x509.SHA256WithRSA,
 			NotBefore:             time.Now(),
 			NotAfter:              time.Now().Add(time.Hour * 24),
 			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
@@ -115,6 +122,10 @@ func (cb *CertBuilder) WithMaxPathLen(maxPathLen int) *CertBuilder {
 	cb.cert.MaxPathLen = maxPathLen
 	cb.cert.MaxPathLenZero = maxPathLen == 0
 	return cb
+}
+
+func (cb *CertBuilder) BuildCert() *x509.Certificate {
+	return cb.cert
 }
 
 // Build returns the built certificate

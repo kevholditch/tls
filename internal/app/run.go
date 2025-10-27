@@ -3,6 +3,10 @@ package app
 import (
 	"fmt"
 	"io"
+	"time"
+
+	"github.com/kevholditch/tls/internal/app/testutil"
+	"github.com/kevholditch/tls/internal/app/util"
 )
 
 type App struct {
@@ -24,15 +28,25 @@ func (a *App) Run(args ...string) error {
 	switch args[0] {
 	case "read":
 		{
-			c, err := Read(args[1])
+			host, err := util.GetAddress(args[1], 443)
 			if err != nil {
 				return err
 			}
-			_, err = a.Out.Write([]byte(c.Subject.CommonName))
+			c, err := Read(host)
+			if err != nil {
+				return err
+			}
+			return Print(c, a.Out, time.Now())
+		}
+	case "print":
+		{
+			cert := testutil.NewCertBuilder().WithDefault().BuildCert()
+			err := Print(cert, a.Out, time.Now())
 			if err != nil {
 				return err
 			}
 			return nil
+
 		}
 	}
 
