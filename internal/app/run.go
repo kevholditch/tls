@@ -36,12 +36,12 @@ func (a *App) Run(args ...string) error {
 			if err != nil {
 				return err
 			}
-			return Print(c, a.Out, time.Now())
+			return Print(a.Out, c, time.Now())
 		}
 	case "print":
 		{
 			cert := testutil.NewCertBuilder().WithDefault().BuildCert()
-			err := Print(cert, a.Out, time.Now())
+			err := Print(a.Out, cert, time.Now())
 			if err != nil {
 				return err
 			}
