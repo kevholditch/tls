@@ -21,6 +21,11 @@ func NewCertBuilder() *CertBuilder {
 	}
 }
 
+func (cb *CertBuilder) WithCert(cert *x509.Certificate) *CertBuilder {
+	cb.cert = cert
+	return cb
+}
+
 func (cb *CertBuilder) WithDefault() *CertBuilder {
 	cb.cert =
 		&x509.Certificate{
