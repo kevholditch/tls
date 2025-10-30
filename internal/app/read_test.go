@@ -89,7 +89,7 @@ func TestReadCommandWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	assert.Contains(t, out.String(), "DNS Names:    []")
 	assert.Contains(t, out.String(), fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
 	assert.Contains(t, out.String(), fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
-	assert.Contains(t, out.String(), fmt.Sprintf("Expires In:   ⚠️ 23 Hours 0 Days"))
+	assert.Contains(t, out.String(), fmt.Sprintf("Expires In:   ⚠️ 23 Hours"))
 	assert.Contains(t, out.String(), "Issuer:       CN=example.com,O=Test Corp")
 	assert.Contains(t, out.String(), "Serial:       123")
 
@@ -167,7 +167,7 @@ func TestReadCommandWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	assert.Contains(t, out.String(), "DNS Names:    []")
 	assert.Contains(t, out.String(), fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
 	assert.Contains(t, out.String(), fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
-	assert.Contains(t, out.String(), fmt.Sprintf("Expires In:   ✅ 23 Hours 9 Days"))
+	assert.Contains(t, out.String(), fmt.Sprintf("Expires In:   ✅ 9 Days 23 Hours"))
 	assert.Contains(t, out.String(), "Issuer:       CN=example.com,O=Test Corp")
 	assert.Contains(t, out.String(), "Serial:       123")
 

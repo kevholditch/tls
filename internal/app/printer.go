@@ -50,7 +50,11 @@ func expiresIn(expiresIn time.Duration) string {
 		sign = "⚠️"
 	}
 
-	return fmt.Sprintf("%s %d Hours %d Days", sign, hours, days)
+	if days < 1 {
+		return fmt.Sprintf("%s %d Hours", sign, hours)
+	}
+
+	return fmt.Sprintf("%s %d Days %d Hours", sign, days, hours)
 }
 
 func niceSigAlg(sa x509.SignatureAlgorithm) string {
