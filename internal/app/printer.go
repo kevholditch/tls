@@ -21,6 +21,7 @@ func Print(writer io.Writer, cert *x509.Certificate, now time.Time) error {
 	newLine(w)
 	printKV(w, "Not Before", cert.NotBefore.Format(time.RFC3339))
 	printKV(w, "Not After", cert.NotAfter.Format(time.RFC3339))
+	printKV(w, "Expires In", expiresIn(cert.NotAfter.Sub(now)))
 
 	newLine(w)
 	printKV(w, "Issuer", cert.Issuer.String())
@@ -37,6 +38,19 @@ func printKV(w io.Writer, k, v string) error {
 func newLine(w io.Writer) error {
 	_, err := fmt.Fprintln(w, "\t")
 	return err
+}
+
+func expiresIn(expiresIn time.Duration) string {
+	totalHours := int(expiresIn.Hours())
+	days := totalHours / 24
+	hours := totalHours % 24
+
+	sign := "✅"
+	if days < 7 {
+		sign = "⚠️"
+	}
+
+	return fmt.Sprintf("%s %d Hours %d Days", sign, hours, days)
 }
 
 func niceSigAlg(sa x509.SignatureAlgorithm) string {

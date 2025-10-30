@@ -50,6 +50,26 @@ func (cb *CertBuilder) WithDefault() *CertBuilder {
 	return cb
 }
 
+func (cb *CertBuilder) WithNotBefore(b time.Time) *CertBuilder {
+	cb.cert.NotBefore = b
+	return cb
+}
+
+func (cb *CertBuilder) WithNotAfter(b time.Time) *CertBuilder {
+	cb.cert.NotAfter = b
+	return cb
+}
+
+func (cb *CertBuilder) WithIssuer(b func() pkix.Name) *CertBuilder {
+	cb.cert.Issuer = b()
+	return cb
+}
+
+func (cb *CertBuilder) WithSignatureAlgorithm(alg x509.SignatureAlgorithm) *CertBuilder {
+	cb.cert.SignatureAlgorithm = alg
+	return cb
+}
+
 // WithSerialNumber sets the certificate serial number
 func (cb *CertBuilder) WithSerialNumber(serial *big.Int) *CertBuilder {
 	cb.cert.SerialNumber = serial

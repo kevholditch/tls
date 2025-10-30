@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kevholditch/tls/internal/app/testutil"
-	"github.com/kevholditch/tls/internal/app/util"
 )
 
 type App struct {
@@ -28,7 +27,7 @@ func (a *App) Run(args ...string) error {
 	switch args[0] {
 	case "read":
 		{
-			host, err := util.GetAddress(args[1], 443)
+			host, err := GetAddress(args[1], 443)
 			if err != nil {
 				return err
 			}
