@@ -2,14 +2,20 @@ package app
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"math/big"
+	"os"
+	"path"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kevholditch/tls/internal/app/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,6 +50,28 @@ func buildExampleCertThatExpiresIn(validityDuration time.Duration) *x509.Certifi
 
 func buildExampleCertWithDNSNames(dnsNames ...string) *x509.Certificate {
 	return DefaultCertBuilder().WithDNSNames(dnsNames...).BuildCert()
+}
+
+func writePEMFile(t *testing.T, cert *x509.Certificate) string {
+	certPath := path.Join(os.TempDir(), fmt.Sprintf("cert-%s.pem", uuid.New().String()))
+
+	// Create a properly signed certificate to get Raw bytes
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.NoError(t, err)
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &priv.PublicKey, priv)
+	assert.NoError(t, err)
+
+	// Encode to PEM format
+	pemBlock := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: derBytes,
+	}
+
+	err = os.WriteFile(certPath, pem.EncodeToMemory(pemBlock), 0644)
+	assert.NoError(t, err)
+
+	return certPath
 }
 
 // setupTestServer creates and starts a test server with the given certificate
@@ -83,13 +111,14 @@ func setupTestServer(t *testing.T, cert *x509.Certificate) *testutil.TestServer 
 }
 
 // runReadCommand runs the read command and returns the output
-func runReadCommand(t *testing.T, server *testutil.TestServer) string {
+func runReadCommand(t *testing.T, readArgs ...string) string {
 	t.Helper()
 
 	var in, out, errOut bytes.Buffer
 	app := NewApp(&in, &out, &errOut)
 
-	err := app.Run("read", server.GetAddress())
+	args := append([]string{"read"}, readArgs...)
+	err := app.Run(args)
 	if err != nil {
 		t.Fatalf("failed to read certificate: %v", err)
 	}
@@ -109,10 +138,10 @@ func assertCommonFields(t *testing.T, output string, cert *x509.Certificate) {
 	assert.Contains(t, output, "Serial:       123")
 }
 
-func TestReadCommandWithCertExpiringInLessThanOneWeek(t *testing.T) {
+func TestReadCommandServerWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	exampleCert := buildExampleCertThatExpiresIn(day)
 	server := setupTestServer(t, exampleCert)
-	output := runReadCommand(t, server)
+	output := runReadCommand(t, server.GetAddress())
 
 	fmt.Println(output)
 	assertCommonFields(t, output, exampleCert)
@@ -120,10 +149,10 @@ func TestReadCommandWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, "DNS Names:    []")
 }
 
-func TestReadCommandWithCertExpiringInMoreThanOneWeek(t *testing.T) {
+func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	exampleCert := buildExampleCertThatExpiresIn(tenDays)
 	server := setupTestServer(t, exampleCert)
-	output := runReadCommand(t, server)
+	output := runReadCommand(t, server.GetAddress())
 
 	fmt.Println(output)
 	assertCommonFields(t, output, exampleCert)
@@ -131,10 +160,25 @@ func TestReadCommandWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, "DNS Names:    []")
 }
 
-func TestReadCommandWithCertWithManyAlternativeNames(t *testing.T) {
+func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
 	exampleCert := buildExampleCertWithDNSNames("api.example.com", "web.example.com", "www.example.com")
 	server := setupTestServer(t, exampleCert)
-	output := runReadCommand(t, server)
+	output := runReadCommand(t, server.GetAddress())
+
+	fmt.Println(output)
+	assertCommonFields(t, output, exampleCert)
+	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
+	assert.Contains(t, output, `DNS Names:    [
+                api.example.com,
+                web.example.com,
+                www.example.com
+              ]`)
+}
+
+func TestReadCommandPEMFile(t *testing.T) {
+	exampleCert := buildExampleCertWithDNSNames("api.example.com", "web.example.com", "www.example.com")
+	filePath := writePEMFile(t, exampleCert)
+	output := runReadCommand(t, filePath)
 
 	fmt.Println(output)
 	assertCommonFields(t, output, exampleCert)

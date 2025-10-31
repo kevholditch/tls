@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"time"
-
-	"github.com/kevholditch/tls/internal/app/testutil"
 )
 
 type App struct {
@@ -22,30 +20,16 @@ func NewApp(in io.Reader, out, err io.Writer) *App {
 	}
 }
 
-func (a *App) Run(args ...string) error {
+func (a *App) Run(args []string) error {
 
 	switch args[0] {
 	case "read":
 		{
-			host, err := GetAddress(args[1], 443)
-			if err != nil {
-				return err
-			}
-			c, err := Read(host)
+			c, err := Read(args[1])
 			if err != nil {
 				return err
 			}
 			return Print(a.Out, c, time.Now())
-		}
-	case "print":
-		{
-			cert := testutil.NewCertBuilder().WithDefault().BuildCert()
-			err := Print(a.Out, cert, time.Now())
-			if err != nil {
-				return err
-			}
-			return nil
-
 		}
 	}
 
