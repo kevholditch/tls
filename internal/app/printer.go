@@ -9,35 +9,47 @@ import (
 	"time"
 )
 
+type errorWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (ew *errorWriter) printKV(k, v string) {
+	if ew.err != nil {
+		return
+	}
+	_, ew.err = fmt.Fprintf(ew.w, "%s:\t%s\n", k, v)
+}
+
+func (ew *errorWriter) newLine() {
+	if ew.err != nil {
+		return
+	}
+	_, ew.err = fmt.Fprintln(ew.w, "\t")
+}
+
 func Print(writer io.Writer, cert *x509.Certificate, now time.Time) error {
 	w := tabwriter.NewWriter(writer, 0, 0, 2, ' ', 0)
-	defer w.Flush()
 
-	newLine(w)
-	printKV(w, "Common Name", cert.Subject.CommonName)
-	printKV(w, "Subject", cert.Subject.String())
-	printKV(w, "DNS Names", fmt.Sprintf("[%s]", strings.Join(cert.DNSNames, ",")))
+	ew := &errorWriter{w: w}
+	ew.newLine()
+	ew.printKV("Common Name", cert.Subject.CommonName)
+	ew.printKV("Subject", cert.Subject.String())
+	ew.printKV("DNS Names", fmt.Sprintf("[%s]", strings.Join(cert.DNSNames, ",")))
 
-	newLine(w)
-	printKV(w, "Not Before", cert.NotBefore.Format(time.RFC3339))
-	printKV(w, "Not After", cert.NotAfter.Format(time.RFC3339))
-	printKV(w, "Expires In", expiresIn(cert.NotAfter.Sub(now)))
+	ew.newLine()
+	ew.printKV("Not Before", cert.NotBefore.Format(time.RFC3339))
+	ew.printKV("Not After", cert.NotAfter.Format(time.RFC3339))
+	ew.printKV("Expires In", expiresIn(cert.NotAfter.Sub(now)))
 
-	newLine(w)
-	printKV(w, "Issuer", cert.Issuer.String())
-	printKV(w, "Serial", cert.SerialNumber.String())
+	ew.newLine()
+	ew.printKV("Issuer", cert.Issuer.String())
+	ew.printKV("Serial", cert.SerialNumber.String())
 
-	return nil
-}
-
-func printKV(w io.Writer, k, v string) error {
-	_, err := fmt.Fprintf(w, "%s:\t%s\n", k, v)
-	return err
-}
-
-func newLine(w io.Writer) error {
-	_, err := fmt.Fprintln(w, "\t")
-	return err
+	if ew.err != nil {
+		return ew.err
+	}
+	return w.Flush()
 }
 
 func expiresIn(expiresIn time.Duration) string {
