@@ -2,35 +2,14 @@ package app
 
 import (
 	"io"
+	"strings"
 	"time"
 
+	"github.com/kevholditch/tls/internal/app/pretty"
 	"github.com/spf13/cobra"
 )
 
-func Run(stdOut, stdErr io.Writer, args []string) error {
-	root := NewRootCmd(stdOut, stdErr)
-	root.SetArgs(args)
-	return root.Execute()
-}
-
-func NewRootCmd(stdOut, stdErr io.Writer) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "tls",
-		Short: "A friendly TLS certificate inspector",
-		Long:  "tls is a human-friendly CLI for inspecting TLS certificates from hosts and files.",
-	}
-
-	// Make Cobra write to your injected writers
-	cmd.SetOut(stdOut)
-	cmd.SetErr(stdErr)
-
-	// Add subcommands
-	cmd.AddCommand(newReadCmd(stdOut, stdErr))
-
-	return cmd
-}
-
-func newReadCmd(stdOut, stdErr io.Writer) *cobra.Command {
+func NewReadCmd(stdOut, stdErr io.Writer) *cobra.Command {
 	var mode string
 
 	c := &cobra.Command{
@@ -52,15 +31,43 @@ Mode controls how target is interpreted:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := args[0]
 
-			cert, err := Read(target)
+			parsedMode, err := ParseMode(mode)
 			if err != nil {
 				return err
 			}
-			return Print(stdOut, cert, time.Now())
+
+			cert, err := Read(target, parsedMode)
+			if err != nil {
+				return err
+			}
+			return pretty.Print(stdOut, cert, time.Now())
 		},
 	}
 
 	c.Flags().StringVar(&mode, "mode", "auto", "input mode: auto, file, or server")
 
 	return c
+}
+
+func DetectMode(arg string) Mode {
+
+	a := strings.ToLower(arg)
+
+	if strings.HasPrefix(a, "https://") || strings.HasPrefix(a, "http://") {
+		return ModeServer
+	}
+
+	if strings.Contains(a, "/") {
+		return ModeFile
+	}
+
+	if strings.HasSuffix(a, ".pem") {
+		return ModeFile
+	}
+
+	if strings.Contains(a, ":") {
+		return ModeServer
+	}
+
+	return ModeServer
 }

@@ -11,8 +11,32 @@ import (
 
 const defaultPort = 443
 
-func Read(host string) (*x509.Certificate, error) {
-	if strings.HasSuffix(host, ".pem") {
+type Mode string
+
+const (
+	ModeAuto   Mode = "auto"
+	ModeFile   Mode = "file"
+	ModeServer Mode = "server"
+)
+
+func ParseMode(s string) (Mode, error) {
+	s = strings.ToLower(strings.TrimSpace(s))
+	mode := Mode(s)
+	switch mode {
+	case ModeAuto, ModeFile, ModeServer:
+		return mode, nil
+	default:
+		return "", fmt.Errorf("invalid mode: %s (must be auto, file, or server)", s)
+	}
+}
+
+func Read(host string, mode Mode) (*x509.Certificate, error) {
+
+	if mode == ModeAuto {
+		mode = DetectMode(host)
+	}
+
+	if mode == ModeFile {
 		return ReadFile(host)
 	}
 
