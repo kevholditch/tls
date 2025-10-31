@@ -8,8 +8,7 @@ import (
 )
 
 func main() {
-	application := app.NewApp(os.Stdin, os.Stdout, os.Stderr)
-	err := application.Run(os.Args[1:])
+	err := app.Run(os.Stdout, os.Stderr, os.Args[1:])
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

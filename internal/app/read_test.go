@@ -114,11 +114,10 @@ func setupTestServer(t *testing.T, cert *x509.Certificate) *testutil.TestServer 
 func runReadCommand(t *testing.T, readArgs ...string) string {
 	t.Helper()
 
-	var in, out, errOut bytes.Buffer
-	app := NewApp(&in, &out, &errOut)
+	var out, errOut bytes.Buffer
 
 	args := append([]string{"read"}, readArgs...)
-	err := app.Run(args)
+	err := Run(&out, &errOut, args)
 	if err != nil {
 		t.Fatalf("failed to read certificate: %v", err)
 	}

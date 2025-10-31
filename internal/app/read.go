@@ -9,12 +9,14 @@ import (
 	"strings"
 )
 
+const defaultPort = 443
+
 func Read(host string) (*x509.Certificate, error) {
 	if strings.HasSuffix(host, ".pem") {
 		return ReadFile(host)
 	}
 
-	addr, err := GetAddress(host, 443)
+	addr, err := GetAddress(host, defaultPort)
 	if err != nil {
 		return nil, err
 
