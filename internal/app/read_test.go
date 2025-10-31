@@ -17,8 +17,7 @@ import (
 var day = 24 * time.Hour
 var tenDays = 10 * day
 
-// buildExampleCert creates a test certificate with the given validity duration
-func buildExampleCert(validityDuration time.Duration) *x509.Certificate {
+func DefaultCertBuilder() *testutil.CertBuilder {
 	return testutil.NewCertBuilder().WithSubject(func() pkix.Name {
 		return pkix.Name{
 			Organization: []string{"Test Corp"},
@@ -32,11 +31,19 @@ func buildExampleCert(validityDuration time.Duration) *x509.Certificate {
 			},
 		}
 	}).WithNotBefore(time.Now()).
-		WithNotAfter(time.Now().Add(validityDuration)).
+		WithNotAfter(time.Now().Add(tenDays)).
 		WithKeyUsage(x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature).
 		WithExtKeyUsage(x509.ExtKeyUsageServerAuth).
-		WithSerialNumber(big.NewInt(123)).
-		BuildCert()
+		WithSerialNumber(big.NewInt(123))
+}
+
+// buildExampleCertThatExpiresIn creates a test certificate with the given validity duration
+func buildExampleCertThatExpiresIn(validityDuration time.Duration) *x509.Certificate {
+	return DefaultCertBuilder().WithValidityDuration(validityDuration).BuildCert()
+}
+
+func buildExampleCertWithDNSNames(dnsNames ...string) *x509.Certificate {
+	return DefaultCertBuilder().WithDNSNames(dnsNames...).BuildCert()
 }
 
 // setupTestServer creates and starts a test server with the given certificate
@@ -96,7 +103,6 @@ func assertCommonFields(t *testing.T, output string, cert *x509.Certificate) {
 
 	assert.Contains(t, output, "Common Name:  example.com")
 	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "DNS Names:    []")
 	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", cert.NotBefore.Format(time.RFC3339)))
 	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", cert.NotAfter.Format(time.RFC3339)))
 	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
@@ -104,21 +110,38 @@ func assertCommonFields(t *testing.T, output string, cert *x509.Certificate) {
 }
 
 func TestReadCommandWithCertExpiringInLessThanOneWeek(t *testing.T) {
-	exampleCert := buildExampleCert(day)
+	exampleCert := buildExampleCertThatExpiresIn(day)
 	server := setupTestServer(t, exampleCert)
 	output := runReadCommand(t, server)
 
 	fmt.Println(output)
 	assertCommonFields(t, output, exampleCert)
 	assert.Contains(t, output, "Expires In:   ⚠️ 23 Hours")
+	assert.Contains(t, output, "DNS Names:    []")
 }
 
 func TestReadCommandWithCertExpiringInMoreThanOneWeek(t *testing.T) {
-	exampleCert := buildExampleCert(tenDays)
+	exampleCert := buildExampleCertThatExpiresIn(tenDays)
 	server := setupTestServer(t, exampleCert)
 	output := runReadCommand(t, server)
 
 	fmt.Println(output)
 	assertCommonFields(t, output, exampleCert)
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
+	assert.Contains(t, output, "DNS Names:    []")
+}
+
+func TestReadCommandWithCertWithManyAlternativeNames(t *testing.T) {
+	exampleCert := buildExampleCertWithDNSNames("api.example.com", "web.example.com", "www.example.com")
+	server := setupTestServer(t, exampleCert)
+	output := runReadCommand(t, server)
+
+	fmt.Println(output)
+	assertCommonFields(t, output, exampleCert)
+	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
+	assert.Contains(t, output, `DNS Names:    [
+                api.example.com,
+                web.example.com,
+                www.example.com
+              ]`)
 }

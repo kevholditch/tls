@@ -28,6 +28,25 @@ func (ew *errorWriter) newLine() {
 	_, ew.err = fmt.Fprintln(ew.w, "\t")
 }
 
+func formatDNS(names []string) string {
+	if len(names) == 0 {
+		return "[]"
+	}
+
+	var b strings.Builder
+	b.WriteString("[\n\t\t")
+
+	for i, n := range names {
+		if i > 0 {
+			b.WriteString(",\n\t\t")
+		}
+		b.WriteString(n)
+	}
+
+	b.WriteString("\n\t]")
+	return b.String()
+}
+
 func Print(writer io.Writer, cert *x509.Certificate, now time.Time) error {
 	w := tabwriter.NewWriter(writer, 0, 0, 2, ' ', 0)
 
@@ -35,7 +54,7 @@ func Print(writer io.Writer, cert *x509.Certificate, now time.Time) error {
 	ew.newLine()
 	ew.printKV("Common Name", cert.Subject.CommonName)
 	ew.printKV("Subject", cert.Subject.String())
-	ew.printKV("DNS Names", fmt.Sprintf("[%s]", strings.Join(cert.DNSNames, ",")))
+	ew.printKV("DNS Names", formatDNS(cert.DNSNames))
 
 	ew.newLine()
 	ew.printKV("Not Before", cert.NotBefore.Format(time.RFC3339))
