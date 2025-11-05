@@ -125,25 +125,17 @@ func runReadCommand(t *testing.T, readArgs ...string) string {
 	return out.String()
 }
 
-// assertCommonFields asserts the common certificate fields that appear in both tests
-func assertCommonFields(t *testing.T, output string, cert *x509.Certificate) {
-	t.Helper()
-
-	assert.Contains(t, output, "Common Name:  example.com")
-	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
-	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", cert.NotBefore.Format(time.RFC3339)))
-	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", cert.NotAfter.Format(time.RFC3339)))
-	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       123")
-}
-
 func TestReadCommandServerWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	exampleCert := buildExampleCertThatExpiresIn(day)
 	server := setupTestServer(t, exampleCert)
 	output := runReadCommand(t, server.GetAddress())
 
-	fmt.Println(output)
-	assertCommonFields(t, output, exampleCert)
+	assert.Contains(t, output, "Common Name:  example.com")
+	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
+	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
+	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
+	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
+	assert.Contains(t, output, "Serial:       123")
 	assert.Contains(t, output, "Expires In:   ⚠️ 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
 }
@@ -153,8 +145,12 @@ func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	server := setupTestServer(t, exampleCert)
 	output := runReadCommand(t, server.GetAddress())
 
-	fmt.Println(output)
-	assertCommonFields(t, output, exampleCert)
+	assert.Contains(t, output, "Common Name:  example.com")
+	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
+	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
+	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
+	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
+	assert.Contains(t, output, "Serial:       123")
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
 }
@@ -164,8 +160,12 @@ func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
 	server := setupTestServer(t, exampleCert)
 	output := runReadCommand(t, server.GetAddress())
 
-	fmt.Println(output)
-	assertCommonFields(t, output, exampleCert)
+	assert.Contains(t, output, "Common Name:  example.com")
+	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
+	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
+	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
+	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
+	assert.Contains(t, output, "Serial:       123")
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, `DNS Names:    [
                 api.example.com,
@@ -179,8 +179,12 @@ func TestReadCommandPEMFile(t *testing.T) {
 	filePath := writePEMFile(t, exampleCert)
 	output := runReadCommand(t, filePath)
 
-	fmt.Println(output)
-	assertCommonFields(t, output, exampleCert)
+	assert.Contains(t, output, "Common Name:  example.com")
+	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
+	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
+	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
+	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
+	assert.Contains(t, output, "Serial:       123")
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, `DNS Names:    [
                 api.example.com,
@@ -188,4 +192,3 @@ func TestReadCommandPEMFile(t *testing.T) {
                 www.example.com
               ]`)
 }
-

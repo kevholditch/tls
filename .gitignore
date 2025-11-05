@@ -1,12 +1,9 @@
 .idea/
 
 # Ignore Go build outputs
-tls
-
-# Optionally ignore all binaries in the project root
 *.exe
 *.out
 *.test
 
-# Or ignore everything in a build folder, if you use one
+# Ignore binaries in bin directory
 /bin/

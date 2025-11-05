@@ -11,7 +11,8 @@ all: build
 # Build the project
 .PHONY: build
 build:
-	go build -o $(BINARY_NAME) $(CMD_DIR)
+	mkdir -p bin
+	go build -o bin/$(BINARY_NAME) $(CMD_DIR)
 
 # Run all tests
 .PHONY: test
@@ -21,4 +22,4 @@ test:
 # Clean up build artifacts
 .PHONY: clean
 clean:
-	rm -f $(BINARY_NAME)
+	rm -rf bin
