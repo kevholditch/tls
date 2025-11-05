@@ -1,4 +1,4 @@
-package app
+package cmd
 
 import (
 	"io"
@@ -28,3 +28,4 @@ func NewRootCmd(stdOut, stdErr io.Writer) *cobra.Command {
 
 	return cmd
 }
+

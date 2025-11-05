@@ -1,11 +1,11 @@
-package app
+package cmd
 
 import (
 	"io"
-	"strings"
 	"time"
 
-	"github.com/kevholditch/tls/internal/app/pretty"
+	"github.com/kevholditch/tls/internal/pretty"
+	"github.com/kevholditch/tls/internal/tls"
 	"github.com/spf13/cobra"
 )
 
@@ -31,12 +31,12 @@ Mode controls how target is interpreted:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := args[0]
 
-			parsedMode, err := ParseMode(mode)
+			parsedMode, err := tls.ParseMode(mode)
 			if err != nil {
 				return err
 			}
 
-			cert, err := Read(target, parsedMode)
+			cert, err := tls.Read(target, parsedMode)
 			if err != nil {
 				return err
 			}
@@ -49,25 +49,3 @@ Mode controls how target is interpreted:
 	return c
 }
 
-func DetectMode(arg string) Mode {
-
-	a := strings.ToLower(arg)
-
-	if strings.HasPrefix(a, "https://") || strings.HasPrefix(a, "http://") {
-		return ModeServer
-	}
-
-	if strings.Contains(a, "/") {
-		return ModeFile
-	}
-
-	if strings.HasSuffix(a, ".pem") {
-		return ModeFile
-	}
-
-	if strings.Contains(a, ":") {
-		return ModeServer
-	}
-
-	return ModeServer
-}

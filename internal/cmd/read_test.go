@@ -1,4 +1,4 @@
-package app
+package cmd
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kevholditch/tls/internal/app/testutil"
+	"github.com/kevholditch/tls/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -188,3 +188,4 @@ func TestReadCommandPEMFile(t *testing.T) {
                 www.example.com
               ]`)
 }
+

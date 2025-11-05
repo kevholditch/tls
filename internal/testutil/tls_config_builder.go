@@ -18,8 +18,8 @@ func (tcb *TlsConfigBuilder) WithCerts(certs ...tls.Certificate) *TlsConfigBuild
 	return tcb
 }
 
-func (tcb *TlsConfigBuilder) WithCert(build func(b CertBuilder) tls.Certificate) *TlsConfigBuilder {
-	tcb.tlsConfig.Certificates = append(tcb.tlsConfig.Certificates, build(CertBuilder{}))
+func (tcb *TlsConfigBuilder) WithCert(build func(b *CertBuilder) tls.Certificate) *TlsConfigBuilder {
+	tcb.tlsConfig.Certificates = append(tcb.tlsConfig.Certificates, build(&CertBuilder{}))
 	return tcb
 }
 
