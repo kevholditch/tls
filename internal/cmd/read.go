@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"crypto/x509"
 	"io"
 	"time"
 
@@ -36,11 +37,16 @@ Mode controls how target is interpreted:
 				return err
 			}
 
-			cert, err := tls.Read(target, parsedMode)
+			roots, err := x509.SystemCertPool()
+			if err != nil || roots == nil {
+				roots = x509.NewCertPool()
+			}
+
+			result, err := tls.Read(target, parsedMode, roots)
 			if err != nil {
 				return err
 			}
-			return pretty.Print(stdOut, cert, time.Now())
+			return pretty.Print(stdOut, result, time.Now())
 		},
 	}
 
