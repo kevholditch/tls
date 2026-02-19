@@ -36,11 +36,11 @@ Mode controls how target is interpreted:
 				return err
 			}
 
-			cert, err := tls.Read(target, parsedMode)
+			certs, err := tls.Read(target, parsedMode)
 			if err != nil {
 				return err
 			}
-			return pretty.Print(stdOut, cert, time.Now())
+			return pretty.Print(stdOut, certs, time.Now())
 		},
 	}
 

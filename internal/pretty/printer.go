@@ -47,7 +47,33 @@ func formatDNS(names []string) string {
 	return b.String()
 }
 
-func Print(writer io.Writer, cert *x509.Certificate, now time.Time) error {
+func formatTrustChain(certs []*x509.Certificate) string {
+	if len(certs) == 0 {
+		return "[]"
+	}
+
+	names := make([]string, len(certs))
+	for i, c := range certs {
+		names[i] = c.Subject.CommonName
+	}
+
+	var b strings.Builder
+	b.WriteString("[\n\t\t")
+
+	for i, n := range names {
+		if i > 0 {
+			b.WriteString(",\n\t\t")
+		}
+		b.WriteString(n)
+	}
+
+	b.WriteString("\n\t]")
+	return b.String()
+}
+
+func Print(writer io.Writer, certs []*x509.Certificate, now time.Time) error {
+	cert := certs[0]
+
 	w := tabwriter.NewWriter(writer, 0, 0, 2, ' ', 0)
 
 	ew := &errorWriter{w: w}
@@ -64,6 +90,9 @@ func Print(writer io.Writer, cert *x509.Certificate, now time.Time) error {
 	ew.newLine()
 	ew.printKV("Issuer", cert.Issuer.String())
 	ew.printKV("Serial", cert.SerialNumber.String())
+
+	ew.newLine()
+	ew.printKV("Trust Chain", formatTrustChain(certs))
 
 	if ew.err != nil {
 		return ew.err

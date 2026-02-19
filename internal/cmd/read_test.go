@@ -74,12 +74,67 @@ func writePEMFile(t *testing.T, cert *x509.Certificate) string {
 	return certPath
 }
 
+// writePEMChainFile writes multiple certificates to a PEM file (leaf first, then CA).
+func writePEMChainFile(t *testing.T, chain *testutil.CertChain) string {
+	t.Helper()
+	certPath := path.Join(os.TempDir(), fmt.Sprintf("chain-%s.pem", uuid.New().String()))
+
+	var buf bytes.Buffer
+	for _, derBytes := range chain.TLSCert.Certificate {
+		pemBlock := &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}
+		if err := pem.Encode(&buf, pemBlock); err != nil {
+			t.Fatalf("failed to encode PEM block: %v", err)
+		}
+	}
+
+	if err := os.WriteFile(certPath, buf.Bytes(), 0644); err != nil {
+		t.Fatalf("failed to write PEM chain file: %v", err)
+	}
+	return certPath
+}
+
 // setupTestServer creates and starts a test server with the given certificate
 func setupTestServer(t *testing.T, cert *x509.Certificate) *testutil.TestServer {
 	t.Helper()
 
 	server, err := testutil.NewTestServer(func(b *testutil.TlsConfigBuilder) *tls.Config {
 		return b.WithCerts(testutil.NewCertBuilder().WithCert(cert).Build()).
+			WithMaximumTLSVersion(tls.VersionTLS13).
+			WithMinimumTLSVersion(tls.VersionTLS12).
+			Build()
+	})
+	if err != nil {
+		t.Fatalf("failed to create test server: %v", err)
+	}
+
+	ready := make(chan struct{})
+	go func() {
+		if err := server.Start(ready); err != nil {
+			t.Errorf("test server error: %v", err)
+		}
+	}()
+
+	select {
+	case <-ready:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for server to start")
+	}
+
+	t.Cleanup(func() {
+		if err := server.Stop(); err != nil {
+			t.Errorf("failed to stop server: %v", err)
+		}
+	})
+
+	return server
+}
+
+// setupTestServerWithChain creates and starts a test server that presents a full certificate chain.
+func setupTestServerWithChain(t *testing.T, chain *testutil.CertChain) *testutil.TestServer {
+	t.Helper()
+
+	server, err := testutil.NewTestServer(func(b *testutil.TlsConfigBuilder) *tls.Config {
+		return b.WithCerts(chain.TLSCert).
 			WithMaximumTLSVersion(tls.VersionTLS13).
 			WithMinimumTLSVersion(tls.VersionTLS12).
 			Build()
@@ -138,6 +193,9 @@ func TestReadCommandServerWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, "Serial:       123")
 	assert.Contains(t, output, "Expires In:   ⚠️ 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
+	assert.Contains(t, output, `Trust Chain:  [
+                example.com
+              ]`)
 }
 
 func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
@@ -153,6 +211,9 @@ func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, "Serial:       123")
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
+	assert.Contains(t, output, `Trust Chain:  [
+                example.com
+              ]`)
 }
 
 func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
@@ -172,6 +233,9 @@ func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
                 web.example.com,
                 www.example.com
               ]`)
+	assert.Contains(t, output, `Trust Chain:  [
+                example.com
+              ]`)
 }
 
 func TestReadCommandPEMFile(t *testing.T) {
@@ -190,5 +254,66 @@ func TestReadCommandPEMFile(t *testing.T) {
                 api.example.com,
                 web.example.com,
                 www.example.com
+              ]`)
+	assert.Contains(t, output, `Trust Chain:  [
+                example.com
+              ]`)
+}
+
+func TestReadCommandServerWithTrustChain(t *testing.T) {
+	leafTemplate := DefaultCertBuilder().
+		WithDNSNames("example.com").
+		BuildCert()
+
+	caTemplate := testutil.NewCertBuilder().
+		WithSubject(func() pkix.Name {
+			return pkix.Name{
+				CommonName:   "My Root CA",
+				Organization: []string{"My Root CA Inc"},
+			}
+		}).
+		WithNotBefore(time.Now()).
+		WithNotAfter(time.Now().Add(tenDays)).
+		WithCA(true).
+		WithSerialNumber(big.NewInt(1)).
+		BuildCert()
+
+	chain := testutil.BuildSignedCertChain(leafTemplate, caTemplate)
+	server := setupTestServerWithChain(t, chain)
+	output := runReadCommand(t, server.GetAddress())
+
+	assert.Contains(t, output, "Common Name:  example.com")
+	assert.Contains(t, output, `Trust Chain:  [
+                example.com,
+                My Root CA
+              ]`)
+}
+
+func TestReadCommandPEMFileWithTrustChain(t *testing.T) {
+	leafTemplate := DefaultCertBuilder().
+		WithDNSNames("example.com").
+		BuildCert()
+
+	caTemplate := testutil.NewCertBuilder().
+		WithSubject(func() pkix.Name {
+			return pkix.Name{
+				CommonName:   "My Root CA",
+				Organization: []string{"My Root CA Inc"},
+			}
+		}).
+		WithNotBefore(time.Now()).
+		WithNotAfter(time.Now().Add(tenDays)).
+		WithCA(true).
+		WithSerialNumber(big.NewInt(1)).
+		BuildCert()
+
+	chain := testutil.BuildSignedCertChain(leafTemplate, caTemplate)
+	filePath := writePEMChainFile(t, chain)
+	output := runReadCommand(t, filePath)
+
+	assert.Contains(t, output, "Common Name:  example.com")
+	assert.Contains(t, output, `Trust Chain:  [
+                example.com,
+                My Root CA
               ]`)
 }
