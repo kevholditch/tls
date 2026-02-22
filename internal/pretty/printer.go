@@ -83,9 +83,9 @@ func Print(writer io.Writer, result *tls.ReadResult, now time.Time) error {
 	ew.printKV("Trust chain", "")
 	for _, c := range result.Chain {
 		trusted := tls.CertTrusted(c, result.Chain, result.VerifiedChains)
-		mark := "✗"
+		mark := "❌"
 		if trusted {
-			mark = "✓"
+			mark = "✅"
 		}
 		_, ew.err = fmt.Fprintf(ew.w, "\t%s %s\n", mark, certDisplayName(c))
 		if ew.err != nil {

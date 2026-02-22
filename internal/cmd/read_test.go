@@ -185,7 +185,7 @@ func TestReadCommandServerWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, "Expires In:   ⚠️ 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
 	assert.Contains(t, output, "Trust chain")
-	assert.Contains(t, output, "✗ example.com")
+	assert.Contains(t, output, "❌ example.com")
 }
 
 func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
@@ -202,7 +202,7 @@ func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
 	assert.Contains(t, output, "Trust chain")
-	assert.Contains(t, output, "✗ example.com")
+	assert.Contains(t, output, "❌ example.com")
 }
 
 func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
@@ -223,7 +223,7 @@ func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
                 www.example.com
               ]`)
 	assert.Contains(t, output, "Trust chain")
-	assert.Contains(t, output, "✗ example.com")
+	assert.Contains(t, output, "❌ example.com")
 }
 
 func TestReadCommandPEMFileTrustedChain(t *testing.T) {
@@ -243,9 +243,9 @@ func TestReadCommandPEMFileTrustedChain(t *testing.T) {
 	output := buf.String()
 
 	assert.Contains(t, output, "Trust chain")
-	assert.Contains(t, output, "✓ example.com")
-	assert.Contains(t, output, "✓ Test Intermediate CA")
-	assert.Contains(t, output, "✓ Test Root CA")
+	assert.Contains(t, output, "✅ example.com")
+	assert.Contains(t, output, "✅ Test Intermediate CA")
+	assert.Contains(t, output, "✅ Test Root CA")
 }
 
 func TestReadCommandServerTrustedChain(t *testing.T) {
@@ -265,8 +265,30 @@ func TestReadCommandServerTrustedChain(t *testing.T) {
 	output := buf.String()
 
 	assert.Contains(t, output, "Trust chain")
-	assert.Contains(t, output, "✓ example.com")
-	assert.Contains(t, output, "✓ Test Intermediate CA")
+	assert.Contains(t, output, "✅ example.com")
+	assert.Contains(t, output, "✅ Test Intermediate CA")
+}
+
+func TestReadCommandPEMFileUntrustedRootMarkedUntrusted(t *testing.T) {
+	chainResult, err := testutil.BuildChain()
+	assert.NoError(t, err)
+	filePath := writePEMFileChain(t, chainResult.Leaf, chainResult.Intermediate, chainResult.Root)
+
+	// Empty roots pool means the self-signed root is not trusted.
+	pool := x509.NewCertPool()
+
+	result, err := tlspkg.Read(filePath, tlspkg.ModeFile, pool)
+	assert.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = pretty.Print(&buf, result, time.Now())
+	assert.NoError(t, err)
+	output := buf.String()
+
+	assert.Contains(t, output, "Trust chain")
+	assert.Contains(t, output, "❌ example.com")
+	assert.Contains(t, output, "❌ Test Intermediate CA")
+	assert.Contains(t, output, "❌ Test Root CA")
 }
 
 func TestReadCommandPEMFile(t *testing.T) {
@@ -287,5 +309,5 @@ func TestReadCommandPEMFile(t *testing.T) {
                 www.example.com
               ]`)
 	assert.Contains(t, output, "Trust chain")
-	assert.Contains(t, output, "✗ example.com")
+	assert.Contains(t, output, "❌ example.com")
 }
