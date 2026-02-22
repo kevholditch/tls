@@ -7,3 +7,6 @@
 
 # Ignore binaries in bin directory
 /bin/
+
+
+.claude/
