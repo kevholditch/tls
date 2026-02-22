@@ -19,6 +19,11 @@ build:
 test:
 	go test ./... -v
 
+# Build and publish a GitHub release (requires a git tag)
+.PHONY: release
+release:
+	goreleaser release --clean
+
 # Clean up build artifacts
 .PHONY: clean
 clean:
