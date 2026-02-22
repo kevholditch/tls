@@ -7,6 +7,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/kevholditch/tls/internal/tls"
 )
 
 type errorWriter struct {
@@ -47,7 +49,19 @@ func formatDNS(names []string) string {
 	return b.String()
 }
 
-func Print(writer io.Writer, cert *x509.Certificate, now time.Time) error {
+func certDisplayName(cert *x509.Certificate) string {
+	if cert.Subject.CommonName != "" {
+		return cert.Subject.CommonName
+	}
+	return cert.Subject.String()
+}
+
+func Print(writer io.Writer, result *tls.ReadResult, now time.Time) error {
+	if result == nil || len(result.Chain) == 0 {
+		return fmt.Errorf("no certificate in result")
+	}
+	cert := result.Chain[0]
+
 	w := tabwriter.NewWriter(writer, 0, 0, 2, ' ', 0)
 
 	ew := &errorWriter{w: w}
@@ -64,6 +78,20 @@ func Print(writer io.Writer, cert *x509.Certificate, now time.Time) error {
 	ew.newLine()
 	ew.printKV("Issuer", cert.Issuer.String())
 	ew.printKV("Serial", cert.SerialNumber.String())
+
+	ew.newLine()
+	ew.printKV("Trust chain", "")
+	for _, c := range result.Chain {
+		trusted := tls.CertTrusted(c, result.Chain, result.VerifiedChains)
+		mark := "❌"
+		if trusted {
+			mark = "✅"
+		}
+		_, ew.err = fmt.Fprintf(ew.w, "\t%s %s\n", mark, certDisplayName(c))
+		if ew.err != nil {
+			break
+		}
+	}
 
 	if ew.err != nil {
 		return ew.err

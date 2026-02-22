@@ -41,3 +41,5 @@ func TestGetAddress_PortNotANumberShouldReturnError(t *testing.T) {
 	assert.Equal(t, "", address)
 }
 
+
+

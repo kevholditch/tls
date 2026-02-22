@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kevholditch/tls/internal/pretty"
 	"github.com/kevholditch/tls/internal/testutil"
+	tlspkg "github.com/kevholditch/tls/internal/tls"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,6 +76,19 @@ func writePEMFile(t *testing.T, cert *x509.Certificate) string {
 	return certPath
 }
 
+// writePEMFileChain writes a PEM file with the given certs in order (leaf first, then intermediates, then root).
+func writePEMFileChain(t *testing.T, certs ...*x509.Certificate) string {
+	t.Helper()
+	certPath := path.Join(os.TempDir(), fmt.Sprintf("cert-chain-%s.pem", uuid.New().String()))
+	var data []byte
+	for _, cert := range certs {
+		data = append(data, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})...)
+	}
+	err := os.WriteFile(certPath, data, 0644)
+	assert.NoError(t, err)
+	return certPath
+}
+
 // setupTestServer creates and starts a test server with the given certificate
 func setupTestServer(t *testing.T, cert *x509.Certificate) *testutil.TestServer {
 	t.Helper()
@@ -110,6 +125,37 @@ func setupTestServer(t *testing.T, cert *x509.Certificate) *testutil.TestServer 
 	return server
 }
 
+// setupTestServerWithCert creates and starts a test server with the given tls.Certificate (e.g. a chain).
+func setupTestServerWithCert(t *testing.T, serverCert tls.Certificate) *testutil.TestServer {
+	t.Helper()
+	server, err := testutil.NewTestServer(func(b *testutil.TlsConfigBuilder) *tls.Config {
+		return b.WithCerts(serverCert).
+			WithMaximumTLSVersion(tls.VersionTLS13).
+			WithMinimumTLSVersion(tls.VersionTLS12).
+			Build()
+	})
+	if err != nil {
+		t.Fatalf("failed to create test server: %v", err)
+	}
+	ready := make(chan struct{})
+	go func() {
+		if err := server.Start(ready); err != nil {
+			t.Errorf("test server error: %v", err)
+		}
+	}()
+	select {
+	case <-ready:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for server to start")
+	}
+	t.Cleanup(func() {
+		if err := server.Stop(); err != nil {
+			t.Errorf("failed to stop server: %v", err)
+		}
+	})
+	return server
+}
+
 // runReadCommand runs the read command and returns the output
 func runReadCommand(t *testing.T, readArgs ...string) string {
 	t.Helper()
@@ -138,6 +184,8 @@ func TestReadCommandServerWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, "Serial:       123")
 	assert.Contains(t, output, "Expires In:   ⚠️ 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
+	assert.Contains(t, output, "Trust chain")
+	assert.Contains(t, output, "❌ example.com")
 }
 
 func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
@@ -153,6 +201,8 @@ func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, "Serial:       123")
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
+	assert.Contains(t, output, "Trust chain")
+	assert.Contains(t, output, "❌ example.com")
 }
 
 func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
@@ -172,6 +222,73 @@ func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
                 web.example.com,
                 www.example.com
               ]`)
+	assert.Contains(t, output, "Trust chain")
+	assert.Contains(t, output, "❌ example.com")
+}
+
+func TestReadCommandPEMFileTrustedChain(t *testing.T) {
+	chainResult, err := testutil.BuildChain()
+	assert.NoError(t, err)
+	filePath := writePEMFileChain(t, chainResult.Leaf, chainResult.Intermediate, chainResult.Root)
+
+	pool := x509.NewCertPool()
+	pool.AddCert(chainResult.Root)
+
+	result, err := tlspkg.Read(filePath, tlspkg.ModeFile, pool)
+	assert.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = pretty.Print(&buf, result, time.Now())
+	assert.NoError(t, err)
+	output := buf.String()
+
+	assert.Contains(t, output, "Trust chain")
+	assert.Contains(t, output, "✅ example.com")
+	assert.Contains(t, output, "✅ Test Intermediate CA")
+	assert.Contains(t, output, "✅ Test Root CA")
+}
+
+func TestReadCommandServerTrustedChain(t *testing.T) {
+	chainResult, err := testutil.BuildChain()
+	assert.NoError(t, err)
+	server := setupTestServerWithCert(t, chainResult.ServerCert)
+
+	pool := x509.NewCertPool()
+	pool.AddCert(chainResult.Root)
+
+	result, err := tlspkg.Read(server.GetAddress(), tlspkg.ModeServer, pool)
+	assert.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = pretty.Print(&buf, result, time.Now())
+	assert.NoError(t, err)
+	output := buf.String()
+
+	assert.Contains(t, output, "Trust chain")
+	assert.Contains(t, output, "✅ example.com")
+	assert.Contains(t, output, "✅ Test Intermediate CA")
+}
+
+func TestReadCommandPEMFileUntrustedRootMarkedUntrusted(t *testing.T) {
+	chainResult, err := testutil.BuildChain()
+	assert.NoError(t, err)
+	filePath := writePEMFileChain(t, chainResult.Leaf, chainResult.Intermediate, chainResult.Root)
+
+	// Empty roots pool means the self-signed root is not trusted.
+	pool := x509.NewCertPool()
+
+	result, err := tlspkg.Read(filePath, tlspkg.ModeFile, pool)
+	assert.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = pretty.Print(&buf, result, time.Now())
+	assert.NoError(t, err)
+	output := buf.String()
+
+	assert.Contains(t, output, "Trust chain")
+	assert.Contains(t, output, "❌ example.com")
+	assert.Contains(t, output, "❌ Test Intermediate CA")
+	assert.Contains(t, output, "❌ Test Root CA")
 }
 
 func TestReadCommandPEMFile(t *testing.T) {
@@ -191,4 +308,6 @@ func TestReadCommandPEMFile(t *testing.T) {
                 web.example.com,
                 www.example.com
               ]`)
+	assert.Contains(t, output, "Trust chain")
+	assert.Contains(t, output, "❌ example.com")
 }
