@@ -2,8 +2,10 @@ package pretty
 
 import (
 	"crypto/x509"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -49,6 +51,25 @@ func formatDNS(names []string) string {
 	return b.String()
 }
 
+func formatSerialColonHex(serial *big.Int) string {
+	if serial == nil {
+		return ""
+	}
+	bytes := serial.Bytes()
+	if len(bytes) == 0 {
+		return "00"
+	}
+	s := hex.EncodeToString(bytes)
+	var b strings.Builder
+	for i := 0; i < len(s); i += 2 {
+		if i > 0 {
+			b.WriteByte(':')
+		}
+		b.WriteString(s[i : i+2])
+	}
+	return b.String()
+}
+
 func certDisplayName(cert *x509.Certificate) string {
 	if cert.Subject.CommonName != "" {
 		return cert.Subject.CommonName
@@ -77,7 +98,7 @@ func Print(writer io.Writer, result *tls.ReadResult, now time.Time) error {
 
 	ew.newLine()
 	ew.printKV("Issuer", cert.Issuer.String())
-	ew.printKV("Serial", cert.SerialNumber.String())
+	ew.printKV("Serial", formatSerialColonHex(cert.SerialNumber))
 
 	ew.newLine()
 	ew.printKV("Trust chain", "")

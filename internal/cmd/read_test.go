@@ -42,7 +42,7 @@ func DefaultCertBuilder() *testutil.CertBuilder {
 		WithNotAfter(time.Now().Add(tenDays)).
 		WithKeyUsage(x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature).
 		WithExtKeyUsage(x509.ExtKeyUsageServerAuth).
-		WithSerialNumber(big.NewInt(123))
+		WithSerialNumber(big.NewInt(0x1234)) // 4660 decimal -> colon-separated hex "12:34"
 }
 
 // buildExampleCertThatExpiresIn creates a test certificate with the given validity duration
@@ -181,7 +181,7 @@ func TestReadCommandServerWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
 	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
 	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       123")
+	assert.Contains(t, output, "Serial:       12:34")
 	assert.Contains(t, output, "Expires In:   ⚠️ 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
 	assert.Contains(t, output, "Trust chain")
@@ -198,7 +198,7 @@ func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
 	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
 	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       123")
+	assert.Contains(t, output, "Serial:       12:34")
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, "DNS Names:    []")
 	assert.Contains(t, output, "Trust chain")
@@ -215,7 +215,7 @@ func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
 	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
 	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
 	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       123")
+	assert.Contains(t, output, "Serial:       12:34")
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, `DNS Names:    [
                 api.example.com,
@@ -301,7 +301,7 @@ func TestReadCommandPEMFile(t *testing.T) {
 	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
 	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
 	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       123")
+	assert.Contains(t, output, "Serial:       12:34")
 	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
 	assert.Contains(t, output, `DNS Names:    [
                 api.example.com,

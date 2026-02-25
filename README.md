@@ -40,7 +40,12 @@ Not After:    2026-01-15T23:59:59Z
 Expires In:   ✅ 71 Days 4 Hours
 
 Issuer:       CN=DigiCert Global G3 TLS ECC SHA384 2020 CA1,O=DigiCert Inc,C=US
-Serial:       14416812407440461216471976375640436634
+Serial:       0a:d8:93:ba:fa:68:b0:b7:fb:7a:40:4f:06:ec:af:9a
+
+Trust chain:
+✅ *.example.com
+✅ DigiCert Global G3 TLS ECC SHA384 2020 CA1
+✅ DigiCert Global Root G3
 ```
 
 
@@ -61,7 +66,12 @@ Not After:    2026-01-15T23:59:59Z
 Expires In:   ✅ 71 Days 4 Hours
 
 Issuer:       CN=DigiCert Global G3 TLS ECC SHA384 2020 CA1,O=DigiCert Inc,C=US
-Serial:       14416812407440461216471976375640436634
+Serial:       0a:d8:93:ba:fa:68:b0:b7:fb:7a:40:4f:06:ec:af:9a
+
+Trust chain:
+✅ *.example.com
+✅ DigiCert Global G3 TLS ECC SHA384 2020 CA1
+✅ DigiCert Global Root G3
 ```
 
 Notice `tls` was smart enough to figure out in the second case we were reading a file and not a server.  To force `tls` into either file mode use `--mode file` or for server mode use `--mode server`.  Normally you don't need to worry about this, so try to forget this insignificant detail and save brain cycles for important matters. 
