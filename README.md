@@ -28,7 +28,6 @@ Example reading from a server:
 ```bash
 tls read example.com
 
-Common Name:  *.example.com
 Subject:      CN=*.example.com,O=Internet Corporation for Assigned Names and Numbers,L=Los Angeles,ST=California,C=US
 DNS Names:    [
                 *.example.com,
@@ -41,6 +40,11 @@ Expires In:   ✅ 71 Days 4 Hours
 
 Issuer:       CN=DigiCert Global G3 TLS ECC SHA384 2020 CA1,O=DigiCert Inc,C=US
 Serial:       0a:d8:93:ba:fa:68:b0:b7:fb:7a:40:4f:06:ec:af:9a
+Signature Algorithm:  ECDSA-SHA384
+Public Key:           ECDSA (P-256, 256 bits)
+
+Key Usage:            Digital Signature
+Extended Key Usage:   Server Auth, Client Auth
 
 Trust chain:
 ✅ *.example.com
@@ -54,7 +58,6 @@ Example reading from a file:
 ```bash
 tls read ./examples/example-com.crt
 
-Common Name:  *.example.com
 Subject:      CN=*.example.com,O=Internet Corporation for Assigned Names and Numbers,L=Los Angeles,ST=California,C=US
 DNS Names:    [
                 *.example.com,
@@ -67,6 +70,11 @@ Expires In:   ✅ 71 Days 4 Hours
 
 Issuer:       CN=DigiCert Global G3 TLS ECC SHA384 2020 CA1,O=DigiCert Inc,C=US
 Serial:       0a:d8:93:ba:fa:68:b0:b7:fb:7a:40:4f:06:ec:af:9a
+Signature Algorithm:  ECDSA-SHA384
+Public Key:           ECDSA (P-256, 256 bits)
+
+Key Usage:            Digital Signature
+Extended Key Usage:   Server Auth, Client Auth
 
 Trust chain:
 ✅ *.example.com

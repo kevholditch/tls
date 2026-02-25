@@ -153,9 +153,7 @@ func (cb *CertBuilder) BuildCert() *x509.Certificate {
 	return cb.cert
 }
 
-// Build returns the built certificate
-func (cb *CertBuilder) Build() tls.Certificate {
-
+func (cb *CertBuilder) createDERAndPrivateKey() ([]byte, *rsa.PrivateKey) {
 	// Generate test certificate
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -167,8 +165,25 @@ func (cb *CertBuilder) Build() tls.Certificate {
 		panic(err)
 	}
 
+	return derBytes, priv
+}
+
+// Build returns the built certificate.
+func (cb *CertBuilder) Build() tls.Certificate {
+	derBytes, priv := cb.createDERAndPrivateKey()
+
 	return tls.Certificate{
 		Certificate: [][]byte{derBytes},
 		PrivateKey:  priv,
 	}
+}
+
+// BuildParsedCert returns a parsed certificate with populated Raw bytes.
+func (cb *CertBuilder) BuildParsedCert() *x509.Certificate {
+	derBytes, _ := cb.createDERAndPrivateKey()
+	parsed, err := x509.ParseCertificate(derBytes)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
 }

@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -12,6 +10,7 @@ import (
 	"math/big"
 	"os"
 	"path"
+	"regexp"
 	"testing"
 	"time"
 
@@ -57,20 +56,15 @@ func buildExampleCertWithDNSNames(dnsNames ...string) *x509.Certificate {
 func writePEMFile(t *testing.T, cert *x509.Certificate) string {
 	certPath := path.Join(os.TempDir(), fmt.Sprintf("cert-%s.pem", uuid.New().String()))
 
-	// Create a properly signed certificate to get Raw bytes
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	assert.NoError(t, err)
-
-	derBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &priv.PublicKey, priv)
-	assert.NoError(t, err)
+	parsedCert := testutil.NewCertBuilder().WithCert(cert).BuildParsedCert()
 
 	// Encode to PEM format
 	pemBlock := &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: derBytes,
+		Bytes: parsedCert.Raw,
 	}
 
-	err = os.WriteFile(certPath, pem.EncodeToMemory(pemBlock), 0644)
+	err := os.WriteFile(certPath, pem.EncodeToMemory(pemBlock), 0644)
 	assert.NoError(t, err)
 
 	return certPath
@@ -171,19 +165,33 @@ func runReadCommand(t *testing.T, readArgs ...string) string {
 	return out.String()
 }
 
+func assertKeyValueLine(t *testing.T, output, key, value string) {
+	t.Helper()
+	pattern := fmt.Sprintf(`(?m)^%s:\s+%s$`, regexp.QuoteMeta(key), regexp.QuoteMeta(value))
+	assert.Regexp(t, pattern, output)
+}
+
+func assertContainsCertificateMetadata(t *testing.T, output string) {
+	t.Helper()
+	assertKeyValueLine(t, output, "Signature Algorithm", "RSA-SHA256")
+	assertKeyValueLine(t, output, "Public Key", "RSA (2048 bits)")
+	assertKeyValueLine(t, output, "Key Usage", "Digital Signature, Key Encipherment")
+	assertKeyValueLine(t, output, "Extended Key Usage", "Server Auth")
+}
+
 func TestReadCommandServerWithCertExpiringInLessThanOneWeek(t *testing.T) {
 	exampleCert := buildExampleCertThatExpiresIn(day)
 	server := setupTestServer(t, exampleCert)
 	output := runReadCommand(t, server.GetAddress())
 
-	assert.Contains(t, output, "Common Name:  example.com")
-	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
-	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
-	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
-	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       12:34")
-	assert.Contains(t, output, "Expires In:   ⚠️ 23 Hours")
-	assert.Contains(t, output, "DNS Names:    []")
+	assertKeyValueLine(t, output, "Subject", "CN=example.com,O=Test Corp")
+	assertKeyValueLine(t, output, "Not Before", exampleCert.NotBefore.Format(time.RFC3339))
+	assertKeyValueLine(t, output, "Not After", exampleCert.NotAfter.Format(time.RFC3339))
+	assertKeyValueLine(t, output, "Issuer", "CN=example.com,O=Test Corp")
+	assertKeyValueLine(t, output, "Serial", "12:34")
+	assertKeyValueLine(t, output, "Expires In", "⚠️ 23 Hours")
+	assertKeyValueLine(t, output, "DNS Names", "[]")
+	assertContainsCertificateMetadata(t, output)
 	assert.Contains(t, output, "Trust chain")
 	assert.Contains(t, output, "❌ example.com")
 }
@@ -193,14 +201,14 @@ func TestReadCommandServerWithCertExpiringInMoreThanOneWeek(t *testing.T) {
 	server := setupTestServer(t, exampleCert)
 	output := runReadCommand(t, server.GetAddress())
 
-	assert.Contains(t, output, "Common Name:  example.com")
-	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
-	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
-	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
-	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       12:34")
-	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
-	assert.Contains(t, output, "DNS Names:    []")
+	assertKeyValueLine(t, output, "Subject", "CN=example.com,O=Test Corp")
+	assertKeyValueLine(t, output, "Not Before", exampleCert.NotBefore.Format(time.RFC3339))
+	assertKeyValueLine(t, output, "Not After", exampleCert.NotAfter.Format(time.RFC3339))
+	assertKeyValueLine(t, output, "Issuer", "CN=example.com,O=Test Corp")
+	assertKeyValueLine(t, output, "Serial", "12:34")
+	assertKeyValueLine(t, output, "Expires In", "✅ 9 Days 23 Hours")
+	assertKeyValueLine(t, output, "DNS Names", "[]")
+	assertContainsCertificateMetadata(t, output)
 	assert.Contains(t, output, "Trust chain")
 	assert.Contains(t, output, "❌ example.com")
 }
@@ -210,18 +218,14 @@ func TestReadCommandServerWithCertWithManyAlternativeNames(t *testing.T) {
 	server := setupTestServer(t, exampleCert)
 	output := runReadCommand(t, server.GetAddress())
 
-	assert.Contains(t, output, "Common Name:  example.com")
-	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
-	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
-	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
-	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       12:34")
-	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
-	assert.Contains(t, output, `DNS Names:    [
-                api.example.com,
-                web.example.com,
-                www.example.com
-              ]`)
+	assertKeyValueLine(t, output, "Subject", "CN=example.com,O=Test Corp")
+	assertKeyValueLine(t, output, "Not Before", exampleCert.NotBefore.Format(time.RFC3339))
+	assertKeyValueLine(t, output, "Not After", exampleCert.NotAfter.Format(time.RFC3339))
+	assertKeyValueLine(t, output, "Issuer", "CN=example.com,O=Test Corp")
+	assertKeyValueLine(t, output, "Serial", "12:34")
+	assertKeyValueLine(t, output, "Expires In", "✅ 9 Days 23 Hours")
+	assert.Regexp(t, `(?ms)DNS Names:\s+\[\n\s+api.example.com,\n\s+web.example.com,\n\s+www.example.com\n\s+\]`, output)
+	assertContainsCertificateMetadata(t, output)
 	assert.Contains(t, output, "Trust chain")
 	assert.Contains(t, output, "❌ example.com")
 }
@@ -296,18 +300,14 @@ func TestReadCommandPEMFile(t *testing.T) {
 	filePath := writePEMFile(t, exampleCert)
 	output := runReadCommand(t, filePath)
 
-	assert.Contains(t, output, "Common Name:  example.com")
-	assert.Contains(t, output, "Subject:      CN=example.com,O=Test Corp")
-	assert.Contains(t, output, fmt.Sprintf("Not Before:   %s", exampleCert.NotBefore.Format(time.RFC3339)))
-	assert.Contains(t, output, fmt.Sprintf("Not After:    %s", exampleCert.NotAfter.Format(time.RFC3339)))
-	assert.Contains(t, output, "Issuer:       CN=example.com,O=Test Corp")
-	assert.Contains(t, output, "Serial:       12:34")
-	assert.Contains(t, output, "Expires In:   ✅ 9 Days 23 Hours")
-	assert.Contains(t, output, `DNS Names:    [
-                api.example.com,
-                web.example.com,
-                www.example.com
-              ]`)
+	assertKeyValueLine(t, output, "Subject", "CN=example.com,O=Test Corp")
+	assertKeyValueLine(t, output, "Not Before", exampleCert.NotBefore.Format(time.RFC3339))
+	assertKeyValueLine(t, output, "Not After", exampleCert.NotAfter.Format(time.RFC3339))
+	assertKeyValueLine(t, output, "Issuer", "CN=example.com,O=Test Corp")
+	assertKeyValueLine(t, output, "Serial", "12:34")
+	assertKeyValueLine(t, output, "Expires In", "✅ 9 Days 23 Hours")
+	assert.Regexp(t, `(?ms)DNS Names:\s+\[\n\s+api.example.com,\n\s+web.example.com,\n\s+www.example.com\n\s+\]`, output)
+	assertContainsCertificateMetadata(t, output)
 	assert.Contains(t, output, "Trust chain")
 	assert.Contains(t, output, "❌ example.com")
 }
