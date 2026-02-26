@@ -29,20 +29,33 @@ type TestServer struct {
 	server *http.Server
 }
 
+type TestServerOptions struct {
+	Handler http.Handler
+}
+
 // NewTestServer creates a new TLS test server
 func NewTestServer(buildTlsConfig func(b *TlsConfigBuilder) *tls.Config) (*TestServer, error) {
+	return NewTestServerWithOptions(buildTlsConfig, nil)
+}
+
+func NewTestServerWithOptions(buildTlsConfig func(b *TlsConfigBuilder) *tls.Config, opts *TestServerOptions) (*TestServer, error) {
 
 	port, err := getRandomPort()
 	if err != nil {
 		return nil, err
 	}
 
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("OK"))
+	}))
+	if opts != nil && opts.Handler != nil {
+		handler = opts.Handler
+	}
+
 	server := &http.Server{
 		Addr:      fmt.Sprintf("127.0.0.1:%d", port),
 		TLSConfig: buildTlsConfig(NewTlsConfigBuilder()),
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("OK"))
-		}),
+		Handler:   handler,
 	}
 
 	return &TestServer{

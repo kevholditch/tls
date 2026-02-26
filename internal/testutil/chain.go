@@ -22,6 +22,14 @@ type ChainResult struct {
 // The root signs the intermediate, the intermediate signs the leaf.
 // ServerCert is suitable for use with a TLS server (chain leaf + intermediate; private key is the leaf's).
 func BuildChain() (*ChainResult, error) {
+	return BuildChainForDNSNames("example.com")
+}
+
+func BuildChainForDNSNames(dnsNames ...string) (*ChainResult, error) {
+	if len(dnsNames) == 0 {
+		dnsNames = []string{"example.com"}
+	}
+
 	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
@@ -40,12 +48,12 @@ func BuildChain() (*ChainResult, error) {
 
 	rootTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:                pkix.Name{CommonName: "Test Root CA", Organization: []string{"Test Root Inc"}},
-		NotBefore:              notBefore,
-		NotAfter:               notAfter,
-		KeyUsage:               x509.KeyUsageCertSign,
+		Subject:               pkix.Name{CommonName: "Test Root CA", Organization: []string{"Test Root Inc"}},
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		KeyUsage:              x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
-		IsCA:                   true,
+		IsCA:                  true,
 	}
 	rootDER, err := x509.CreateCertificate(rand.Reader, rootTemplate, rootTemplate, &rootKey.PublicKey, rootKey)
 	if err != nil {
@@ -63,7 +71,7 @@ func BuildChain() (*ChainResult, error) {
 		NotBefore:             notBefore,
 		NotAfter:              notAfter,
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:          []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 		MaxPathLen:            0,
@@ -79,14 +87,14 @@ func BuildChain() (*ChainResult, error) {
 
 	leafTemplate := &x509.Certificate{
 		SerialNumber:          big.NewInt(3),
-		Subject:               pkix.Name{CommonName: "example.com", Organization: []string{"Test Corp"}},
+		Subject:               pkix.Name{CommonName: dnsNames[0], Organization: []string{"Test Corp"}},
 		Issuer:                intermediate.Subject,
 		NotBefore:             notBefore,
 		NotAfter:              notAfter,
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
-		DNSNames:              []string{"example.com"},
+		DNSNames:              dnsNames,
 	}
 	leafDER, err := x509.CreateCertificate(rand.Reader, leafTemplate, intermediate, &leafKey.PublicKey, intermediateKey)
 	if err != nil {
