@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/kevholditch/tls/internal/pretty"
+	"github.com/kevholditch/tls/internal/prettyprint"
 	"github.com/kevholditch/tls/internal/tls"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +46,7 @@ Mode controls how target is interpreted:
 			if err != nil {
 				return err
 			}
-			return pretty.Print(stdOut, result, time.Now())
+			return prettyprint.ReadResult(stdOut, result, time.Now())
 		},
 	}
 

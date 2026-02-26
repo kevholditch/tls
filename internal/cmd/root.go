@@ -25,9 +25,7 @@ func NewRootCmd(stdOut, stdErr io.Writer) *cobra.Command {
 
 	// Add subcommands
 	cmd.AddCommand(NewReadCmd(stdOut, stdErr))
+	cmd.AddCommand(NewExplainCmd(stdOut, stdErr))
 
 	return cmd
 }
-
-
-

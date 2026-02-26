@@ -33,6 +33,11 @@ func (tcb *TlsConfigBuilder) WithMaximumTLSVersion(version uint16) *TlsConfigBui
 	return tcb
 }
 
+func (tcb *TlsConfigBuilder) WithNextProtos(protocols ...string) *TlsConfigBuilder {
+	tcb.tlsConfig.NextProtos = append([]string{}, protocols...)
+	return tcb
+}
+
 func (tcb *TlsConfigBuilder) Build() *tls.Config {
 	return tcb.tlsConfig
 }
