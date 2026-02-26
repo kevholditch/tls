@@ -1,4 +1,4 @@
-package pretty
+package prettyprint
 
 import (
 	"crypto/ecdsa"
@@ -10,30 +10,10 @@ import (
 	"io"
 	"math/big"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/kevholditch/tls/internal/tls"
 )
-
-type errorWriter struct {
-	w   io.Writer
-	err error
-}
-
-func (ew *errorWriter) printKV(k, v string) {
-	if ew.err != nil {
-		return
-	}
-	_, ew.err = fmt.Fprintf(ew.w, "%s:\t%s\n", k, v)
-}
-
-func (ew *errorWriter) newLine() {
-	if ew.err != nil {
-		return
-	}
-	_, ew.err = fmt.Fprintln(ew.w, "\t")
-}
 
 func formatStringList(values []string) string {
 	if len(values) == 0 {
@@ -186,52 +166,22 @@ func certDisplayName(cert *x509.Certificate) string {
 	return cert.Subject.String()
 }
 
-func Print(writer io.Writer, result *tls.ReadResult, now time.Time) error {
+func ReadResult(writer io.Writer, result *tls.ReadResult, now time.Time) error {
 	if result == nil || len(result.Chain) == 0 {
 		return fmt.Errorf("no certificate in result")
 	}
-	cert := result.Chain[0]
 
-	w := tabwriter.NewWriter(writer, 0, 0, 2, ' ', 0)
+	leaf := result.Chain[0]
+	blocks := buildCertificateBlocks(leaf, leaf.NotAfter.Sub(now), certificateBlockOptions{
+		IncludeKeyUsage: true,
+	})
+	blocks = append(blocks, buildTrustChainBlock(result.Chain, result.VerifiedChains, trustChainBlockOptions{
+		Title:      "Trust chain",
+		TitleStyle: blockTitleKeyValue,
+		IndentRows: true,
+	}))
 
-	ew := &errorWriter{w: w}
-	ew.newLine()
-	ew.printKV("Subject", cert.Subject.String())
-	ew.printKV("DNS Names", formatStringList(cert.DNSNames))
-
-	ew.newLine()
-	ew.printKV("Not Before", cert.NotBefore.Format(time.RFC3339))
-	ew.printKV("Not After", cert.NotAfter.Format(time.RFC3339))
-	ew.printKV("Expires In", expiresIn(cert.NotAfter.Sub(now)))
-
-	ew.newLine()
-	ew.printKV("Issuer", cert.Issuer.String())
-	ew.printKV("Serial", formatSerialColonHex(cert.SerialNumber))
-	ew.printKV("Signature Algorithm", niceSigAlg(cert.SignatureAlgorithm))
-	ew.printKV("Public Key", publicKeySummary(cert))
-
-	ew.newLine()
-	ew.printKV("Key Usage", formatKeyUsage(cert.KeyUsage))
-	ew.printKV("Extended Key Usage", formatExtKeyUsage(cert))
-
-	ew.newLine()
-	ew.printKV("Trust chain", "")
-	for _, c := range result.Chain {
-		trusted := tls.CertTrusted(c, result.Chain, result.VerifiedChains)
-		mark := "❌"
-		if trusted {
-			mark = "✅"
-		}
-		_, ew.err = fmt.Fprintf(ew.w, "\t%s %s\n", mark, certDisplayName(c))
-		if ew.err != nil {
-			break
-		}
-	}
-
-	if ew.err != nil {
-		return ew.err
-	}
-	return w.Flush()
+	return renderBlocks(writer, blocks)
 }
 
 func expiresIn(expiresIn time.Duration) string {

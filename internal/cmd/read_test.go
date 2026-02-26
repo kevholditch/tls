@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/kevholditch/tls/internal/pretty"
+	"github.com/kevholditch/tls/internal/prettyprint"
 	"github.com/kevholditch/tls/internal/testutil"
 	tlspkg "github.com/kevholditch/tls/internal/tls"
 	"github.com/stretchr/testify/assert"
@@ -242,7 +242,7 @@ func TestReadCommandPEMFileTrustedChain(t *testing.T) {
 	assert.NoError(t, err)
 
 	var buf bytes.Buffer
-	err = pretty.Print(&buf, result, time.Now())
+	err = prettyprint.ReadResult(&buf, result, time.Now())
 	assert.NoError(t, err)
 	output := buf.String()
 
@@ -264,7 +264,7 @@ func TestReadCommandServerTrustedChain(t *testing.T) {
 	assert.NoError(t, err)
 
 	var buf bytes.Buffer
-	err = pretty.Print(&buf, result, time.Now())
+	err = prettyprint.ReadResult(&buf, result, time.Now())
 	assert.NoError(t, err)
 	output := buf.String()
 
@@ -285,7 +285,7 @@ func TestReadCommandPEMFileUntrustedRootMarkedUntrusted(t *testing.T) {
 	assert.NoError(t, err)
 
 	var buf bytes.Buffer
-	err = pretty.Print(&buf, result, time.Now())
+	err = prettyprint.ReadResult(&buf, result, time.Now())
 	assert.NoError(t, err)
 	output := buf.String()
 
